@@ -17,9 +17,12 @@ class WaypointNavigator:
 
         # Waypoints definition
         self.waypoints = [
-            {"x": 7.0, "y": 0.0, "yaw": 0.0},
-            {"x": 8.0, "y": -3.0, "yaw": -1.57},
-            {"x": 12.0, "y": -3.0, "yaw": 1.57},
+            {"x": 0.0, "y": 0.0, "yaw": -1.57},
+            {"x": 7.5, "y": -1.0, "yaw": 0.0},
+            {"x": 8.5, "y": -3.5, "yaw": 3.14},
+            {"x": 12.5, "y": -3.5, "yaw": -0.8},
+            {"x": 12.5, "y": 0.5, "yaw": 1.57},
+            {"x": 10, "y": 0.6, "yaw": 3.14}
         ]
         
         self.find_april_tags = find_april_tags

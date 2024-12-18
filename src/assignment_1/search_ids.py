@@ -19,7 +19,7 @@ class FindAprilTags:
         )
         self.server.start()
 
-        self.target_ids = [1] # list of target ids to found
+        self.target_ids = [] # list of target ids to found
         self.detected_ids = [] # list of ids already found by Thiago while moving
         self.detected_poses = [] # list of detected poses
         self.result = FindAprilTagsResult()
@@ -31,17 +31,20 @@ class FindAprilTags:
     """
 
     def detection_callback_tf(self, msg):
+
         listener = tf.TransformListener()
-        target_frame = "base_link"
+        target_frame = "map"
         source_frame = msg.header.frame_id
 
         # Wait until transform is available
         while not listener.canTransform(target_frame, source_frame, rospy.Time(0)):
             rospy.sleep(0.5)
 
+
+
         # Perform the transformation
-        for i, detection in msg.detections:
-            tag_id = detection.id[i]
+        for detection in msg.detections:
+            tag_id = detection.id[0]
             # Perform the transformation only if the AprilTag is the the list of target_ids
             if tag_id in self.target_ids and tag_id not in self.detected_ids:
                 self.detected_ids.append(tag_id)
@@ -55,14 +58,14 @@ class FindAprilTags:
                 
                 # Transform the pose in the base_frame
                 try:
-                    listener.transformPose(target_frame, pos_in, pos_out)
+                    pos_out = listener.transformPose(target_frame, pos_in)
                 except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException) as e:
                     rospy.logerr(f"Error during transform: {e}")
                 
                 self.detected_poses.append(pos_out)
                 # Publish a feedback 
                 feedback = FindAprilTagsFeedback()
-                feedback.detected_ids = tag_id
+                feedback.detected_ids = self.detected_ids
                 feedback.detected_pose = pos_out
                 self.server.publish_feedback(feedback)
 
@@ -71,7 +74,7 @@ class FindAprilTags:
     """
 
     def execute_cb(self, goal):
-        #rospy.loginfo("Search for Apriltags started!")
+        rospy.loginfo("Search for Apriltags started!")
         self.target_ids = goal.target_ids.ids
         #self.navigator.run()
 
@@ -79,23 +82,28 @@ class FindAprilTags:
         rospy.Subscriber('/tag_detections', AprilTagDetectionArray, self.detection_callback_tf)
 
       # Execute the action
-        rate = rospy.Rate(1)  
+        rate = rospy.Rate(0.001)  
         success = True
 
-        while not rospy.is_shutdown():
-            # Check if the client request to cancell the action
-            if self.server.is_preempt_requested():
-                rospy.loginfo("Action preempted by the client.")
-                self.server.set_preempted()
-                success = False
-                break
+        try:
+            while not rospy.is_shutdown():
+                # Check if the client request to cancell the action
+                if self.server.is_preempt_requested():
+                    rospy.loginfo("Action preempted by the client.")
+                    self.server.set_preempted()
+                    success = False
+                    break
 
-            # Check when all the ids are been found
-            if len(self.getDetectedIds()) == len(self.getTargetIds()):
-                rospy.loginfo("All AprilTags are been found!")
-                break
+                # Check when all the ids are been found
+                if len(self.getDetectedIds()) == len(self.getTargetIds()):
+                    rospy.loginfo("All AprilTags are been found!")
+                    break
 
-            rate.sleep() 
+                rate.sleep() 
+        except rospy.ROSInterruptException:
+            rospy.loginfo("ROS shutdown detected. Exiting gracefully.")
+            success = False
+
 
         if success:
             
